@@ -1,0 +1,17 @@
+{
+  "host": "0.0.0.0",
+  "port": 12345,
+  "overseaUrl": "https://a.b.c/query",
+  "domesticServer": {
+    "address": "119.29.29.29",
+    "port": 53,
+    "type": "udp",
+    "memo": "DNSPod"
+  },
+  "static": {
+    "ttl": 120,
+    "table": {
+      "t.e.s.t": "1.2.3.4"
+    }
+  }
+}
