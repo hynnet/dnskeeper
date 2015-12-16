@@ -4,6 +4,7 @@
 
 var dns = require('native-dns');
 var config = require('config');
+var util = require('./util');
 
 var domesticServer = config.get('domesticServer');
 
@@ -18,6 +19,8 @@ function createAnswerA(domain, ip, ttl) {
 // only handle first question for now
 function handleRequest(req, callback) {
     var question = req.question[0];
+
+    console.debug('query from %s : %s', req.address.address, question.name);
 
     // query static table first
     var staticConf = config.get('static');
@@ -63,4 +66,5 @@ function startServer() {
     console.info('Server started on %s:%d', host, port);
 }
 
+util.initLog4JS();
 startServer();
