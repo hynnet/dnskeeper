@@ -4,9 +4,13 @@
 
 var dns = require('native-dns');
 var config = require('config');
-var util = require('./util');
+var Util = require('./util');
+var fs = require('fs');
 
-var domesticServer = config.get('domesticServer');
+var _domesticServer = config.get('domesticServer');
+var _foreignServer = config.get('foreignServer');
+var _domesticKeywords = config.get('domesticKeywords');
+var _cache = {};
 
 function createAnswerA(domain, ip, ttl) {
     return dns.A({
@@ -16,7 +20,7 @@ function createAnswerA(domain, ip, ttl) {
     });
 }
 
-function getIPsFromAnswer(answers) {
+function getIPsFromAnswers(answers) {
     var ips = [];
     if (!answers) {
         return ips;
@@ -37,26 +41,42 @@ function handleRequest(req, callback) {
     var staticConf = config.get('static');
     var staticResult = staticConf.table[question.name];
     if (staticResult != null) {
-        console.debug('query  static  for [%s, %s]: %s', req.address.address, question.name, staticResult);
-        callback(null, [createAnswerA(question.name, staticResult, staticConf.ttl)]);
-        return;
+        console.debug('query static for [%s, %s]: [%s]', req.address.address, question.name, staticResult);
+        return callback(null, [createAnswerA(question.name, staticResult, staticConf.ttl)]);
     }
 
-    // query domestic server
+    // search cache for valid answers
+    var answers = queryCache(question.name, true);
+    if (answers.length > 0) {
+        console.debug('query valid cache for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(answers));
+        return callback(null, answers);
+    }
+
+    // query server
+    var domestic = isDomesticDomain(question.name);
     var dreq = dns.Request({
         question: question,
-        server: domesticServer
+        server: domestic ? _domesticServer : _foreignServer
     });
     dreq.on('timeout', function() {
-        console.debug('query  timeout for [%s, %s]', req.address.address, question.name);
-        callback(null, []);
+        var answers = queryCache(question.name, false);
+        console.debug('query invalid cache for [%s, %s]: [%s] (timed out from %s)', req.address.address, question.name,
+            getIPsFromAnswers(answers), domestic ? 'D' : 'F');
+        callback(null, answers);
     });
     dreq.on('message', function(err, answer) {
-        if (config.get('debug')) {
-            console.debug('query answered for (%s, %s): [%s]', req.address.address, question.name,
-                getIPsFromAnswer(answer.answer));
+        var answers = answer.answer;
+        if (answers && answers.length > 0) {
+            console.debug('query %s answered for (%s, %s): [%s]', domestic ? 'D' : 'F', req.address.address,
+                question.name, getIPsFromAnswers(answers));
+            callback(null, answers);
+            addToCache(question.name, answers);
+        } else {
+            var answers = queryCache(question.name, false);
+            console.debug('query invalid cache for [%s, %s]: [%s] (no answers from %s)', req.address.address, question.name,
+                getIPsFromAnswers(answers), domestic ? 'D' : 'F');
+            callback(null, answers);
         }
-        callback(null, answer.answer);
     });
     dreq.send();
 }
@@ -83,5 +103,91 @@ function startServer() {
     console.info('Server started on %s:%d', host, port);
 }
 
-util.initLog4JS();
-startServer();
+function isDomesticDomain(domain) {
+    var lower = domain.toLowerCase();
+    for (var i=0; i<_domesticKeywords.length; i++) {
+        if (lower.indexOf(_domesticKeywords[i]) >= 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function initDomesticKeywords() {
+    for (var i=0; i<_domesticKeywords.length; i++) {
+        _domesticKeywords[i] = _domesticKeywords[i].toLowerCase();
+    }
+}
+
+function loadCache(callback) {
+    var file = config.get('cache.file');
+    fs.readFile(file, function(err, data) {
+        if (err || !data) {
+            console.info('Cannot load cache file.');
+            return callback();
+        }
+        try {
+            _cache = JSON.parse(data);
+            console.info('Cache loaded with %d records.', Util.countProperties(_cache));
+        } catch (e) {
+            console.info('Parse cache file failed!');
+        }
+        callback();
+    });
+}
+
+function saveCache() {
+    var file = config.get('cache.file');
+    var tmpFile = file + '.tmp';
+    fs.writeFile(tmpFile, JSON.stringify(_cache, null, 2), function(err) {
+        if (err) {
+            console.info('Cache failed to save: %s', err);
+        } else {
+            fs.rename(tmpFile, file, function(err) {
+                console.info('Cache saved with %d records.', Util.countProperties(_cache));
+            });
+        }
+        scheduleNextSave();
+    });
+}
+
+function scheduleNextSave() {
+    var interval = config.get('cache.saveInterval');
+    setTimeout(saveCache, interval);
+}
+
+function addToCache(domain, answers) {
+    var minTTL = 86400;
+    if (!answers || answers.length <= 0) {
+        return;
+    }
+    for (var i=0; i<answers.length; i++) {
+        minTTL = Math.min(minTTL, answers[i].ttl);
+    }
+    var death = Date.now() + minTTL * 1000;
+    var record = {
+        domain: domain,
+        answers: answers,
+        death: death
+    };
+    _cache[domain] = record;
+}
+
+function queryCache(domain, requireValid) {
+    var record = _cache[domain];
+    if (record == null) {
+        return [];
+    }
+    if (requireValid && record.death < Date.now()) {
+        return [];
+    }
+    return record.answers;
+}
+
+Util.initLog4JS();
+initDomesticKeywords();
+loadCache(function() {
+    startServer();
+    scheduleNextSave();
+});
+

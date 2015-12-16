@@ -41,3 +41,16 @@ Util.initLog4JS = function() {
     log4js.setGlobalLogLevel(config.get('debug') ? "DEBUG" : "INFO");
     log4js.configure(logConfig, {});
 };
+
+Util.countProperties = function(obj) {
+    if (obj == null) {
+        return 0;
+    }
+    var count = 0;
+    for (var key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            count++;
+        }
+    }
+    return count;
+};
