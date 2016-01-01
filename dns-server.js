@@ -36,9 +36,6 @@ function getIPsFromAnswers(answers) {
 // only handle first question for now
 function handleRequest(req, callback) {
     var question = req.question[0];
-    if (question.type == dns.consts.NAME_TO_QTYPE.AAAA) { // Do not support IPv6 for now
-        return callback(null, []);
-    }
 
     // query static table first
     var staticConf = config.get('static');
