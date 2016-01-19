@@ -33,6 +33,18 @@ function getIPsFromAnswers(answers) {
     return ips;
 }
 
+function hasTypeAIP(answers) {
+    if (!answers) {
+        return false;
+    }
+    for (var i=0; i<answers.length; i++) {
+        if (answers[i].type==1) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // only handle first question for now
 function handleRequest(req, callback) {
     var question = req.question[0];
@@ -179,6 +191,9 @@ function queryCache(domain, requireValid) {
         return [];
     }
     if (requireValid && record.death < Date.now()) {
+        return [];
+    }
+    if (requireValid && !hasTypeAIP(record.answers)) {
         return [];
     }
     return record.answers;
