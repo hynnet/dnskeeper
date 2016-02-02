@@ -2,6 +2,7 @@
   "debug": true,
   "host": "0.0.0.0",
   "port": 12345,
+  "fastResponse": true,
   "foreignServer": {
     "address": "8.8.4.4",
     "port": 53,

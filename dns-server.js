@@ -58,39 +58,42 @@ function handleRequest(req, callback) {
     }
 
     // search cache for valid answers
-    var answers = queryCache(question.name, true);
-    if (answers.length > 0) {
-        console.debug('query valid cache for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(answers));
-        return callback(null, answers);
-    }
-
-    // query server
-    var domestic = isDomesticDomain(question.name);
-    var dreq = dns.Request({
-        question: question,
-        server: domestic ? _domesticServer : _foreignServer
-    });
-    dreq.on('timeout', function() {
-        var answers = queryCache(question.name, false);
-        console.debug('query invalid cache for [%s, %s]: [%s] (timed out from %s)', req.address.address, question.name,
-            getIPsFromAnswers(answers), domestic ? 'D' : 'F');
-        callback(null, answers);
-    });
-    dreq.on('message', function(err, answer) {
-        var answers = answer.answer;
-        if (answers && answers.length > 0) {
-            console.debug('query %s answered for (%s, %s): [%s]', domestic ? 'D' : 'F', req.address.address,
-                question.name, getIPsFromAnswers(answers));
-            callback(null, answers);
-            addToCache(question.name, answers);
+    var record = _cache[question.name];
+    var answered = false;
+    if (record && isCacheRecordUsable(record)
+        && (config.get('fastResponse') || !isCacheRecordExpired(record))) { // in fast mode, return first even if it's expired
+        callback(null, record.answers);
+        answered = true;
+        if (isCacheRecordExpired(record)) {
+            console.debug('expired record for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(record.answers));
         } else {
-            var answers = queryCache(question.name, false);
-            console.debug('query invalid cache for [%s, %s]: [%s] (no answers from %s)', req.address.address, question.name,
-                getIPsFromAnswers(answers), domestic ? 'D' : 'F');
-            callback(null, answers);
+            console.debug('valid record for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(record.answers));
         }
-    });
-    dreq.send();
+    }
+    if (!record || isCacheRecordExpired(record) || !isCacheRecordUsable(record)) { // query for invalid record
+        var domestic = isDomesticDomain(question.name);
+        var dreq = dns.Request({
+            question: question,
+            server: domestic ? _domesticServer : _foreignServer
+        });
+        dreq.on('timeout', function() {
+            console.debug('query timed out for [%s] from %s', question.name, domestic ? 'D' : 'F');
+            if (!answered) {
+                callback(null, []);
+            }
+        });
+        dreq.on('message', function(err, answer) {
+            var answers = answer.answer || [];
+            if (answers.length > 0) {
+                addToCache(question.name, answers);
+                console.debug('query answered for [%s] from %s', question.name, domestic ? 'D' : 'F');
+            }
+            if (!answered) {
+                callback(null, answers);
+            }
+        });
+        dreq.send();
+    }
 }
 
 function startServer() {
@@ -185,18 +188,12 @@ function addToCache(domain, answers) {
     _cache[domain] = record;
 }
 
-function queryCache(domain, requireValid) {
-    var record = _cache[domain];
-    if (record == null) {
-        return [];
-    }
-    if (requireValid && record.death < Date.now()) {
-        return [];
-    }
-    if (requireValid && !hasTypeAIP(record.answers)) {
-        return [];
-    }
-    return record.answers;
+function isCacheRecordExpired(record) {
+    return record.death <= Date.now();
+}
+
+function isCacheRecordUsable(record) {
+    return hasTypeAIP(record.answers);
 }
 
 Util.initLog4JS();
