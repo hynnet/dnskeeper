@@ -84,7 +84,7 @@ function handleRequest(req, callback) {
         });
         dreq.on('message', function(err, answer) {
             var answers = answer.answer || [];
-            if (answers.length > 0) {
+            if (answers.length > 0 && hasTypeAIP(answers)) {
                 addToCache(question.name, answers);
                 console.debug('query answered for [%s] from %s', question.name, domestic ? 'D' : 'F');
             }
