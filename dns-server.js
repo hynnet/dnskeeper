@@ -104,6 +104,9 @@ function startServer() {
             for (var i=0; i<answers.length; i++) {
                 response.answer.push(answers[i]);
             }
+            if (response.header.rd == 1) {
+                response.header.ra = 1;
+            }
             response.send();
         });
     });
