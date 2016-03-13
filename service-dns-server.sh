@@ -8,6 +8,8 @@ if [ "$cmd" == "" ]; then
 	exit
 fi
 
+mkdir -p $path/log
+
 if [ "$cmd" == "start" ]; then
 	forever $cmd -a --workingDir "$path" -l $path/log/forever.log -o $path/log/out.log -e $path/log/err.log $path/dns-server.js
 else
