@@ -5,12 +5,11 @@
 var dns = require('native-dns');
 var config = require('config');
 var Util = require('./util');
-var fs = require('fs');
+var redis = require('redis').createClient(config.get('cache.port'), config.get('cache.host'), config.get('cache.options'));
 
 var _domesticServer = config.get('domesticServer');
 var _foreignServer = config.get('foreignServer');
 var _domesticKeywords = config.get('domesticKeywords');
-var _cache = {};
 
 function createAnswerA(domain, ip, ttl) {
     return dns.A({
@@ -58,45 +57,59 @@ function handleRequest(req, callback) {
     }
 
     // search cache for valid answers
-    var record = _cache[question.name];
-    var answered = false;
-    if (record && isCacheRecordUsable(record)
-        && (config.get('fastResponse') || !isCacheRecordExpired(record))) { // in fast mode, return first even if it's expired
-        callback(null, record.answers);
-        answered = true;
-        if (isCacheRecordExpired(record)) {
-            console.debug('expired record for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(record.answers));
-        } else {
-            console.debug('valid record for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(record.answers));
+    getCache(question.name, function(err, record) {
+        var answered = false;
+        if (record && isCacheRecordUsable(record)
+            && (config.get('fastResponse') || !isCacheRecordExpired(record))) { // in fast mode, return first even if it's expired
+            callback(null, record.answers);
+            answered = true;
+            if (isCacheRecordExpired(record)) {
+                console.debug('expired record for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(record.answers));
+            } else {
+                console.debug('valid record for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(record.answers));
+            }
         }
-    }
-    if (!record || isCacheRecordExpired(record) || !isCacheRecordUsable(record)) { // query for invalid record
-        var domestic = isDomesticDomain(question.name);
-        var dreq = dns.Request({
-            question: question,
-            server: domestic ? _domesticServer : _foreignServer
-        });
-        dreq.on('timeout', function() {
-            console.debug('query timed out for [%s] from %s', question.name, domestic ? 'D' : 'F');
-            if (!answered) {
-                callback(null, []);
-            }
-        });
-        dreq.on('message', function(err, answer) {
-            var answers = answer.answer || [];
-            if (answers.length > 0 && hasTypeAIP(answers)) {
-                addToCache(question.name, answers);
-                console.debug('query answered for [%s] from %s', question.name, domestic ? 'D' : 'F');
-            }
-            if (!answered) {
-                callback(null, answers);
-            }
-        });
-        dreq.send();
-    }
+        if (!record || isCacheRecordExpired(record) || !isCacheRecordUsable(record)) { // query for invalid record
+            var domestic = isDomesticDomain(question.name);
+            var dreq = dns.Request({
+                question: question,
+                server: domestic ? _domesticServer : _foreignServer
+            });
+            dreq.on('timeout', function() {
+                console.debug('query timed out for [%s] from %s', question.name, domestic ? 'D' : 'F');
+                if (!answered) {
+                    callback(null, []);
+                }
+            });
+            dreq.on('message', function(err, answer) {
+                var answers = answer.answer || [];
+                if (answers.length > 0 && hasTypeAIP(answers)) {
+                    addToCache(question.name, answers);
+                    console.debug('query answered for [%s] from %s', question.name, domestic ? 'D' : 'F');
+                }
+                if (!answered) {
+                    callback(null, answers);
+                }
+            });
+            dreq.send();
+        }
+    });
 }
 
 function startServer() {
+    // init redis events
+    redis.on('ready',function(){
+        console.info('cache ready');
+    });
+
+    redis.on('end',function(){
+        console.warn('cache connection lost');
+    });
+
+    redis.on('error',function(error){
+        console.error('cache error %s', error.toString());
+    });
+
     var server = dns.createServer();
     server.on('request', function (request, response) {
         //console.log(request);
@@ -137,43 +150,6 @@ function initDomesticKeywords() {
     }
 }
 
-function loadCache(callback) {
-    var file = config.get('cache.file');
-    fs.readFile(file, function(err, data) {
-        if (err || !data) {
-            console.info('Cannot load cache file.');
-            return callback();
-        }
-        try {
-            _cache = JSON.parse(data);
-            console.info('Cache loaded with %d records.', Util.countProperties(_cache));
-        } catch (e) {
-            console.info('Parse cache file failed!');
-        }
-        callback();
-    });
-}
-
-function saveCache() {
-    var file = config.get('cache.file');
-    var tmpFile = file + '.tmp';
-    fs.writeFile(tmpFile, JSON.stringify(_cache, null, 2), function(err) {
-        if (err) {
-            console.info('Cache failed to save: %s', err);
-        } else {
-            fs.rename(tmpFile, file, function(err) {
-                console.info('Cache saved with %d records.', Util.countProperties(_cache));
-            });
-        }
-        scheduleNextSave();
-    });
-}
-
-function scheduleNextSave() {
-    var interval = config.get('cache.saveInterval');
-    setTimeout(saveCache, interval);
-}
-
 function addToCache(domain, answers) {
     var minTTL = 86400;
     if (!answers || answers.length <= 0) {
@@ -188,7 +164,25 @@ function addToCache(domain, answers) {
         answers: answers,
         death: death
     };
-    _cache[domain] = record;
+    redis.set(domain, JSON.stringify(record));
+}
+
+function getCache(domain, callback) {
+    redis.get(domain, function(err, value) {
+        if (err) {
+            console.warn(err);
+        }
+        var obj = null;
+        if (!!value) {
+            try {
+                obj = JSON.parse(value);
+            } catch (e) {
+                obj = null;
+                console.warn('Error parsing record from redis: ' + e.toString());
+            }
+        }
+        callback(err, obj);
+    });
 }
 
 function isCacheRecordExpired(record) {
@@ -201,8 +195,4 @@ function isCacheRecordUsable(record) {
 
 Util.initLog4JS();
 initDomesticKeywords();
-loadCache(function() {
-    startServer();
-    scheduleNextSave();
-});
-
+startServer();
