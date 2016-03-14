@@ -56,7 +56,7 @@ You can start the server by using the following commands (root privileges are re
 
 ```
 export NODE_ENV=production
-node app.js
+node dns-server.js
 ```
 
 Or you can start the service using forever:
