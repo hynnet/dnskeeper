@@ -26,9 +26,21 @@ As for the cache, the server saves every query result in local cache (redis), an
 所有查询到的记录都会保存在redis缓存中，以便下次快速响应。如果配置了fastResponse，则每次请求都会先立刻返回缓存中的记录（即使已经过期），然后再更新该记录（如果过期的话）。
 
 ## Quick Start
-Make sure you have node/npm and redis server installed.
+Make sure you have node/npm and redis server installed, or follow the commands below:
 
-First make a copy of default.json to production.json in config folder, and make necessary changes. Here are some explanations of the configure items:
+```
+curl -sL https://deb.nodesource.com/setup_0.12 | sudo -E bash -
+sudo apt-get install -y nodejs nodejs-legacy
+sudo apt-get install -y redis-server
+```
+
+First install necessary modules. Goto DNSKeeper cloned directory, run
+
+```
+npm install
+```
+
+Then make a copy of default.json to production.json in config folder, and make necessary changes. Here are some explanations of the configure items:
 
 * port - port number that this server listens to, should be 53 for production use
 * fastResponse - if set to true, cached results will be returned immediately regardless of whether they are expired or not
@@ -38,9 +50,21 @@ First make a copy of default.json to production.json in config folder, and make 
 * static - static record table
 
 ## 快速指南
-请确保你安装了node环境及redis server。
+请确保你安装了node环境及redis server。若没有，可参考以下命令：
 
-首先将config/default.json复制一份，改名为config/production.json，然后修改该配置文件：
+```
+curl -sL https://deb.nodesource.com/setup_0.12 | sudo -E bash -
+sudo apt-get install -y nodejs nodejs-legacy
+sudo apt-get install -y redis-server
+```
+
+首先进入DNS Keeper目录，执行以下命令来安装依赖库：
+
+```
+npm install
+```
+
+然后将config/default.json复制一份到config/production.json，然后修改该配置文件：
 
 * port - UDP端口号，正式使用的话请使用53
 * fastResponse - 是否启用快速响应模式（见之前描述）
