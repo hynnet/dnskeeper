@@ -44,6 +44,12 @@ function hasTypeAIP(answers) {
     return false;
 }
 
+function setAnswerTtl(answers, ttl) {
+    for (var i=0; i<answers.length; i++) {
+        answers[i].ttl = ttl;
+    }
+}
+
 // only handle first question for now
 function handleRequest(req, callback) {
     var question = req.question[0];
@@ -61,13 +67,14 @@ function handleRequest(req, callback) {
         var answered = false;
         if (record && isCacheRecordUsable(record)
             && (config.get('fastResponse') || !isCacheRecordExpired(record))) { // in fast mode, return first even if it's expired
-            callback(null, record.answers);
-            answered = true;
             if (isCacheRecordExpired(record)) {
                 console.debug('expired record for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(record.answers));
+                setAnswerTtl(record.answers, 1); // expire this record real soon
             } else {
                 console.debug('valid record for [%s, %s]: [%s]', req.address.address, question.name, getIPsFromAnswers(record.answers));
             }
+            callback(null, record.answers);
+            answered = true;
         }
         if (!record || isCacheRecordExpired(record) || !isCacheRecordUsable(record)) { // query for invalid record
             var domestic = isDomesticDomain(question.name);
