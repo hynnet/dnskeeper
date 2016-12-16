@@ -130,7 +130,9 @@ function startServer() {
             try {
                 response.send();
             } catch (e) {
-                console.log('Error when sending response: ' + JSON.stringify(response));
+                if (request) {
+                    console.log('Error when sending response for ' + JSON.stringify(request));
+                }
                 console.log(e);
             }
         });
