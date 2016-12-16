@@ -127,7 +127,12 @@ function startServer() {
             if (response.header.rd == 1) {
                 response.header.ra = 1;
             }
-            response.send();
+            try {
+                response.send();
+            } catch (e) {
+                console.log('Error when sending response: ' + JSON.stringify(response));
+                console.log(e);
+            }
         });
     });
 
