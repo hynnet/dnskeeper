@@ -10,6 +10,7 @@ var redis = require('redis').createClient(config.get('cache.port'), config.get('
 var _domesticServer = config.get('domesticServer');
 var _foreignServer = config.get('foreignServer');
 var _domesticKeywords = config.get('domesticKeywords');
+var GFWRules = require('./GFWRules');
 
 function createAnswerA(domain, ip, ttl) {
     return dns.A({
