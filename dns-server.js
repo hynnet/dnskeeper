@@ -78,7 +78,7 @@ function handleRequest(req, callback) {
             answered = true;
         }
         if (!record || isCacheRecordExpired(record) || !isCacheRecordUsable(record)) { // query for invalid record
-            var domestic = isDomesticDomain(question.name);
+            var domestic = !isGFWBlockedDomain(question.name);
             var dreq = dns.Request({
                 question: question,
                 server: domestic ? _domesticServer : _foreignServer
@@ -157,6 +157,10 @@ function isDomesticDomain(domain) {
         }
     }
     return false;
+}
+
+function isGFWBlockedDomain(domain) {
+    return GFWRules.matches(domain.toLowerCase());
 }
 
 function initDomesticKeywords() {
