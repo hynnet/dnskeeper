@@ -15,9 +15,6 @@
     "type": "udp",
     "memo": "DNSPod"
   },
-  "domesticKeywords": [
-    "baidu", "bdimg", "bdstatic", "sina", ".163.", ".qq."
-  ],
   "static": {
     "ttl": 120,
     "table": {
