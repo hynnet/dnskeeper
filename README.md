@@ -18,10 +18,14 @@ DNS Keeper是一枚DNS代理程序，本身可作为DNS服务器使用。它与S
 ## How it works
 When it receives a DNS query, it checks against the gfwlist, if the requested domain name fits the gfwlist rules, it will query the foreign DNS server (which should be through Shadowsocks in order to avoid pollution), otherwise it queries the domestic server.
 
+DNS Keeper uses two gfwlist configurations, one is from the gfwlist project (https://github.com/gfwlist/gfwlist) which will be updated automatically, the other one is user-defined.
+
 As for the cache, the server saves every query result in local cache (redis), and use the cached result for fast response. If configured, it will return cached results even if they are expired to get fastest response.
 
 ## 工作原理
 当DNS Keeper收到DNS请求时，它首先检查gfwlist规则，若匹配gfwlist中的任何一条规则，则认定为墙外域名，使用墙外DNS服务器，否则使用国内服务器。
+
+DNS Keeper使用两个gfwlist配置,一个是gfwlist官方配置(自动更新),另一个则是本地的自定义文件配置,以应对在官方文件中不存在的特殊域名。
 
 所有查询到的记录都会保存在redis缓存中，以便下次快速响应。如果配置了fastResponse，则每次请求都会先立刻返回缓存中的记录（即使已经过期），然后再更新该记录（如果过期的话）。
 
@@ -49,6 +53,7 @@ Then make a copy of default.json to production.json in config folder, and make n
 * foreignServer - the default upstream DNS server, which should be configured using a foreign server through shadowsocks or some VPN solutions (the one in default.json is only an example)
 * domesticServer - the upstream server used when request match the domestic keywords
 * static - static record table
+* extraGFWRules - location of the local gfwlist configuration file
 
 Lastly, get a newest copy of gfwlist:
 
@@ -80,6 +85,7 @@ npm install
 * foreignServer - 海外服务器地址，请使用经过Shadowsocks的地址及端口号
 * domesticServer - 国内服务器地址（比如114.114.114.114）
 * static - 静态记录，查询时将最优先使用
+* extraGFWRules - 本地自定义gfwlist配置文件路径
 
 最后,获取一份最新的gfwlist配置:
 
