@@ -6,16 +6,18 @@ var fs = require('fs');
 var ABPFilterParser = require('abp-filter-parser');
 var https = require('https');
 var schedule = require('node-schedule');
+var config = require('config');
 
 var GFWRules = {};
 module.exports = GFWRules;
 
-const GFWRulesFile = "GFWBasicRules.list";
-let parsedFilterData = {};
+const basicRulesFile = "GFWBasicRules.list";
+let basicFilterData = {};
+let extraFilterData = null;
 let GFWDomainList = {};
 GFWRules.matches = function (domain) {
     try {
-        return ABPFilterParser.matches(parsedFilterData, domain)
+        return ABPFilterParser.matches(basicFilterData, domain) || (extraFilterData && ABPFilterParser.matches(extraFilterData, domain));
     } catch (e) {
         return false;
     }
@@ -23,11 +25,17 @@ GFWRules.matches = function (domain) {
 
 (() => {
     try {
-        GFWDomainList = fs.readFileSync(GFWRulesFile, "utf-8");
-        ABPFilterParser.parse(Buffer.from(GFWDomainList, 'base64').toString(), parsedFilterData);
+        GFWDomainList = fs.readFileSync(basicRulesFile, "utf-8");
+        ABPFilterParser.parse(Buffer.from(GFWDomainList, 'base64').toString(), basicFilterData);
+
+        var extraFile = config.get('extraGFWRules');
+        if (fs.existsSync(extraFile)) {
+            extraFilterData = {};
+            ABPFilterParser.parse(fs.readFileSync(extraFile, 'utf-8'), extraFilterData);
+        }
     } catch (e) {
         console.warn("Please make sure the GFWBasicRules.list is exist under the project root directory.");
-        console.warn("You can just copy GFWBasicRules.list.template to GFWBasicRules.list  \nOr get newest from https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt");
+        console.warn("You can just copy GFWBasicRules.list.sample to GFWBasicRules.list  \nOr get newest from https://raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt");
     }
 })();
 
@@ -35,10 +43,10 @@ function initABPFilterByGFWList() {
     getGFWList((err, result) => {
         if (err || result.length < 1000) {
             console.warn(`${err.toString()} Error occurs when get newest GFW Blocked Domain List, use local list instead.`);
-            ABPFilterParser.parse(GFWDomainList, parsedFilterData);
+            ABPFilterParser.parse(GFWDomainList, basicFilterData);
         } else {
-            ABPFilterParser.parse(Buffer.from(result, 'base64').toString(), parsedFilterData);
-            fs.writeFile(GFWRulesFile, result, 'utf8', (err) => {
+            ABPFilterParser.parse(Buffer.from(result, 'base64').toString(), basicFilterData);
+            fs.writeFile(basicRulesFile, result, 'utf8', (err) => {
                 if (err) console.warn(err);
             });
         }
