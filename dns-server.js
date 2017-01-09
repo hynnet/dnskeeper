@@ -9,7 +9,6 @@ var redis = require('redis').createClient(config.get('cache.port'), config.get('
 
 var _domesticServer = config.get('domesticServer');
 var _foreignServer = config.get('foreignServer');
-var _domesticKeywords = config.get('domesticKeywords');
 var GFWRules = require('./GFWRules');
 
 function createAnswerA(domain, ip, ttl) {
@@ -149,24 +148,8 @@ function startServer() {
     console.info('Server started on %s:%d', host, port);
 }
 
-function isDomesticDomain(domain) {
-    var lower = domain.toLowerCase();
-    for (var i=0; i<_domesticKeywords.length; i++) {
-        if (lower.indexOf(_domesticKeywords[i]) >= 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 function isGFWBlockedDomain(domain) {
     return GFWRules.matches(domain.toLowerCase());
-}
-
-function initDomesticKeywords() {
-    for (var i=0; i<_domesticKeywords.length; i++) {
-        _domesticKeywords[i] = _domesticKeywords[i].toLowerCase();
-    }
 }
 
 function addToCache(domain, answers) {
@@ -213,5 +196,4 @@ function isCacheRecordUsable(record) {
 }
 
 Util.initLog4JS();
-initDomesticKeywords();
 startServer();
