@@ -1,0 +1,31 @@
+{
+  "debug": true,
+  "host": "0.0.0.0",
+  "port": 53,
+  "fastResponse": true,
+  "foreignServer": {
+    "address": "8.8.4.4",
+    "port": 53,
+    "type": "udp",
+    "memo": "Google"
+  },
+  "domesticServer": {
+    "address": "202.106.196.115",
+    "address-1": "119.29.29.29",
+    "port": 53,
+    "type": "udp",
+    "memo": "DNSPod"
+  },
+  "static": {
+    "ttl": 120,
+    "table": {
+      "t.e.s.t": "1.2.3.4"
+    }
+  },
+  "cache": {
+    "host": "localhost",
+    "port": 6379,
+    "options": {}
+  },
+  "extraGFWRules": "/etc/gfwrules.list"
+}
