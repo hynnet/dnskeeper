@@ -1,0 +1,133 @@
+#!/bin/sh
+# dnskeeperd	This is the init script for starting up the dnskeeperd
+#		server
+#
+# chkconfig: 345 64 36
+# description: Starts and stops the tomcat backend daemon.
+# processname: tomcat
+# pidfile: /var/run/tomcat.pid
+
+# Source function library.
+. /etc/init.d/functions
+
+# Get config.
+. /etc/sysconfig/network
+
+# Find the name of the script
+NAME=`basename $0`
+if [ ${NAME:0:1} = "S" -o ${NAME:0:1} = "K" ]
+then
+	NAME=${NAME:3}
+fi
+
+# For SELinux we need to use 'runuser' not 'su'
+if [ -x /usr/sbin/runuser ]
+then
+    SU=runuser
+else
+    SU=su
+fi
+
+
+# Set defaults for configuration variables
+#PROGRAMDIR=/usr/local/dnskeeper
+PROGRAMDIR=`realpath $0`
+PROGRAMDIR=`dirname ${PROGRAMDIR}`
+prog=$PROGRAMDIR/service-dns-server.sh
+PGRLOG=/dev/null
+lockfile=${LOCKFILE-/var/lock/subsys/dnskeeperd}
+pidfile=${PIDFILE-/var/run/dnskeeperd.pid}
+
+# Check that networking is up.
+# Pretty much need it for postmaster.
+[ "${NETWORKING}" = "no" ] && exit 0
+
+start(){
+	SERVICE_START=$"Starting ${NAME} service: "
+
+	echo -n "$SERVICE_START"
+	echo ""
+
+	${prog} start
+	pid=`ps -ef | grep node	| grep $PROGRAMDIR | grep dns-server.js | awk '{print $2}'`
+	if [ $pid ]
+	then
+		success "$SERVICE_START"
+		touch /var/lock/subsys/${NAME}
+		echo $pid | head -n 1 > ${pidfile}
+		echo
+	else
+		failure "$SERVICE_START"
+		echo
+	fi
+}
+
+stop(){
+	echo -n $"Stopping ${NAME} service: "
+	echo ""
+#	killproc -p ${pidfile} ${prog}
+	${prog} stop
+	RETVAL=$?
+	echo
+	[ $RETVAL = 0 ] && rm -f ${lockfile} ${pidfile}
+}
+
+restart(){
+	stop
+	sleep 1
+	start
+}
+
+condrestart(){
+    [ -e /var/lock/subsys/${NAME} ] && restart
+}
+
+condstop(){
+    [ -e /var/lock/subsys/${NAME} ] && stop
+}
+
+reload(){
+	restart
+}
+
+status(){
+	${prog} status
+	return 0
+}
+
+# This script is slightly unusual in that the name of the daemon (postmaster)
+# is not the same as the name of the subsystem (postgresql)
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  status)
+#	status
+	;;
+  restart)
+#	restart
+	${prog} restart
+	;;
+  condrestart)
+	${prog} condrestart
+	;;
+  condstop)
+	${prog} condstop
+	;;
+  reload|force-reload)
+	${prog} reload
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|status|restart|condrestart|condstop|reload|force-reload}"
+	exit 1
+esac
+
+exit 0
+
+# Version 1.0 Huang YingNing <huangyingning at gmail.com>
+#
