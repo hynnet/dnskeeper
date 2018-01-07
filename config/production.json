@@ -19,10 +19,10 @@
   "static": {
     "ttl": 1200,
     "table": {
-      "wxpay.eggwifi.com": "10.10.3.101",
-      "user.eggwifi.com": "10.10.3.101",
-      "user.eggwifi.cn": "10.10.3.101",
-      "www.eggwifi.com": "10.10.3.101"
+      "test.wxpay.eggwifi.com": "10.10.3.101",
+      "test.user.eggwifi.com": "10.10.3.101",
+      "test.user.eggwifi.cn": "10.10.3.101",
+      "test.www.eggwifi.com": "10.10.3.101"
     }
   },
   "cache": {
