@@ -1,4 +1,5 @@
 .idea
+config/production.json
 production.json
 node_modules
 debug.json
