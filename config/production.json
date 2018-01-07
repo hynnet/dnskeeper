@@ -17,9 +17,12 @@
     "memo": "DNSPod"
   },
   "static": {
-    "ttl": 120,
+    "ttl": 1200,
     "table": {
-      "t.e.s.t": "1.2.3.4"
+      "wxpay.eggwifi.com": "10.10.3.101",
+      "user.eggwifi.com": "10.10.3.101",
+      "user.eggwifi.cn": "10.10.3.101",
+      "www.eggwifi.com": "10.10.3.101"
     }
   },
   "cache": {
