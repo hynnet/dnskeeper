@@ -1,15 +1,16 @@
+var config = require('config');
 var stompit = require('stompit');
 
 // Configure connection management
 
 var servers = [
   { 
-    host: '10.10.3.201',
+    host: config.get('mq.host'),
     port: 61613,
     connectHeaders:{
-      'host': '10.10.3.201',
-      'login': '',
-      'passcode': '',
+      'host': config.get('mq.host'),
+      'login': config.get('mq.user'),
+      'passcode': config.get('mq.pass'),
       'heart-beat': '100,100'
     }
   }
