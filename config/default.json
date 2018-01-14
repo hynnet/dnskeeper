@@ -26,5 +26,10 @@
     "port": 6379,
     "options": {}
   },
+  "mq": {
+    "host": "",
+    "user": "",
+    "pass": ""
+  },
   "extraGFWRules": "/etc/gfwrules.list"
 }

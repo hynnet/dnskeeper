@@ -6,6 +6,18 @@ var dns = require('native-dns');
 var config = require('config');
 var Util = require('./util');
 var redis = require('redis').createClient(config.get('cache.port'), config.get('cache.host'), config.get('cache.options'));
+var destination = '/topic/gfwdns';
+var mqOptions = {
+    'host': config.get('mq.host'),
+    'port': 61613,
+    'connectHeaders': {
+        'host': '/',
+        'login': config.get('mq.user'),
+        'passcode': config.get('mq.pass'),
+        'heart-beat': '5000,5000'
+    }
+};
+var mq = require('stompit');
 
 var _domesticServer = config.get('domesticServer');
 var _foreignServer = config.get('foreignServer');
@@ -91,7 +103,7 @@ function handleRequest(req, callback) {
             dreq.on('message', function(err, answer) {
                 var answers = answer.answer || [];
                 if (answers.length > 0 && hasTypeAIP(answers)) {
-                    addToCache(question.name, answers);
+                    addToCache(question.name, answers, domestic);
                     console.debug('query answered for [%s] from %s', question.name, domestic ? 'D' : 'F');
                 }
                 if (!answered) {
@@ -152,7 +164,7 @@ function isGFWBlockedDomain(domain) {
     return GFWRules.matches(domain.toLowerCase());
 }
 
-function addToCache(domain, answers) {
+function addToCache(domain, answers, domestic) {
     var minTTL = 86400;
     if (!answers || answers.length <= 0) {
         return;
@@ -166,7 +178,36 @@ function addToCache(domain, answers) {
         answers: answers,
         death: death
     };
-    redis.set(domain, JSON.stringify(record));
+    var json = JSON.stringify(record);
+    redis.set(domain, json);
+    console.info('json:', json);
+    if (!domestic) {
+        // send mq
+        if (config.get('mq.host') != '') {
+            console.info('MQ:', config.get('mq.host'));
+            mq.connect(mqOptions, function(error, client) {
+                if (error) {
+                    console.log('connect error ' + error.message);
+                    return;
+                }
+                console.log('Send MQ:', domain);
+                var frame = client.send({ 'destination': destination });
+                frame.write(json);
+                frame.end();
+
+//            mq.disconnect();
+/*
+                mq.disconnect(function(error) {
+                    if (error) {
+                        console.log('Error while disconnecting: ' + error.message);
+                        return;
+                    }
+                    console.log('disconnected');
+                });
+*/
+            });
+        }
+    }
 }
 
 function getCache(domain, callback) {
