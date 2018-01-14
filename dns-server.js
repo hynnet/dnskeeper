@@ -194,17 +194,7 @@ function addToCache(domain, answers, domestic) {
                 var frame = client.send({ 'destination': destination });
                 frame.write(json);
                 frame.end();
-
-//            mq.disconnect();
-/*
-                mq.disconnect(function(error) {
-                    if (error) {
-                        console.log('Error while disconnecting: ' + error.message);
-                        return;
-                    }
-                    console.log('disconnected');
-                });
-*/
+                client.disconnect();
             });
         }
     }
