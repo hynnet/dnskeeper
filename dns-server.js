@@ -158,6 +158,7 @@ function startServer() {
     var host = config.get('host');
     server.serve(port, host);
     console.info('Server started on %s:%d', host, port);
+    console.info("domestic DNS:%s,  foreign DNS:%s", _domesticServer.address, _foreignServer.address);
 }
 
 function isGFWBlockedDomain(domain) {
