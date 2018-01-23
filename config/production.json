@@ -37,5 +37,6 @@
     "user": "",
     "pass": ""
   },
-  "extraGFWRules": "/etc/gfwrules.list"
+  "extraGFWRules": "/usr/local/dnskeeper/gfwrules.list",
+  "extraGFWRules-bak": "/etc/gfwrules.list"
 }
