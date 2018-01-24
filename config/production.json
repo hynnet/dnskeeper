@@ -21,6 +21,8 @@
   "static": {
     "ttl": 1200,
     "table": {
+      "ftp.all.kernel.org": "147.75.110.187",
+      "ftp.kernel.org": "147.75.110.187",
       "test.wxpay.eggwifi.com": "10.10.3.101",
       "test.user.eggwifi.com": "10.10.3.101",
       "test.user.eggwifi.cn": "10.10.3.101",
