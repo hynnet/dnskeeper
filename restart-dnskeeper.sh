@@ -13,7 +13,7 @@ fi
 ps -ef | grep node | grep 'dns-server.js' | grep -v grep | awk '{print $2}' | xargs kill > /dev/null 2>&1
 mv -f log/forever.log log/forever-${time}.log
 mv -f log/out.log log/out-${time}.log
-service named restart
+/sbin/service named restart
 /etc/init.d/dnskeeperd start
 # NODE_ENV=production /usr/local/bin/node dns-server.js &
 bzip2 log/forever-${time}.log &
